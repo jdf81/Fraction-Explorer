@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1A1A2E" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Fractions" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="description" content="Learn equivalent fractions with visual models!" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%231A1A2E'/%3E%3Ccircle cx='256' cy='256' r='180' fill='%23FF6B35'/%3E%3Cline x1='76' y1='256' x2='436' y2='256' stroke='%23FFF' stroke-width='18' stroke-linecap='round'/%3E%3Ctext x='256' y='220' text-anchor='middle' font-size='110' font-family='Arial Black' fill='white' font-weight='900'%3E1%3C/text%3E%3Ctext x='256' y='370' text-anchor='middle' font-size='110' font-family='Arial Black' fill='white' font-weight='900'%3E2%3C/text%3E%3C/svg%3E" />
+  <title>Fraction World</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; background: #1A1A2E; }
+    #root { height: 100%; display: flex; flex-direction: column; }
+
+    /* Prevent iOS text selection & callout on interactive elements */
+    button, input[type=range] { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none; }
+    button:active { opacity: 0.75; transform: scale(0.97); }
+
+    /* Range slider — fat thumb for fingers */
+    input[type=range] { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 4px; outline: none; cursor: pointer; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%; background: var(--thumb-color, #FF6B35); border: 3px solid #FFF; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+    input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: var(--thumb-color, #FF6B35); border: 3px solid #FFF; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+
+    /* Number inputs — prevent zoom on iOS (font-size >= 16px) */
+    input[type=number] { -webkit-appearance: none; appearance: none; -moz-appearance: textfield; font-size: 16px !important; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    /* Scroll area */
+    .page-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
+
+    /* Bottom nav */
+    .bottom-nav { background: #1A1A2E; display: flex; padding: 8px 12px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); gap: 6px; flex-shrink: 0; border-top: 1px solid rgba(255,255,255,0.08); }
+    .nav-btn { flex: 1; background: transparent; border: none; border-radius: 14px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; transition: background 0.15s; }
+    .nav-btn.active { background: #FFE66D; }
+    .nav-btn .icon { font-size: 22px; line-height: 1; }
+    .nav-btn .label { font-family: 'Fredoka One', sans-serif; font-size: 11px; color: rgba(255,255,255,0.65); }
+    .nav-btn.active .label { color: #1A1A2E; }
+
+    /* Header */
+    .app-header { background: #1A1A2E; padding: 14px 16px; padding-top: calc(14px + env(safe-area-inset-top)); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+    @keyframes popIn { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .pop-in { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
+    .slide-up { animation: slideUp 0.25s ease both; }
+
+    /* Cards */
+    .card { background: #FFF; border-radius: 18px; border: 2px solid #E5E0D8; box-shadow: 0 2px 12px rgba(0,0,0,0.06); overflow: hidden; }
+
+    /* Badges */
+    .badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 20px; padding: 4px 10px; font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 700; }
+
+    /* Fraction display */
+    .frac { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; line-height: 1; }
+    .frac-bar { height: 3px; border-radius: 2px; }
+
+    /* Computation row */
+    .comp-row { background: #FAFAFA; border-radius: 10px; padding: 10px; display: flex; align-items: center; gap: 8px; }
+
+    /* Answer input */
+    .answer-input { width: 52px; height: 40px; border-radius: 10px; border: 2.5px solid #DDD; font-size: 20px !important; font-family: 'Fredoka One', sans-serif; text-align: center; outline: none; background: #FFF; transition: border-color 0.2s, background 0.2s; }
+    .answer-input.correct { border-color: #22C55E; background: #F0FDF4; color: #15803D; }
+    .answer-input.wrong { border-color: #EC4899; background: #FFF0F0; color: #BE123C; }
+    .answer-input.idle { color: #1A1A2E; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+// ─── constants ───────────────────────────────────────────────────────────────
+const C = {
+  bg:"#FFF8F0", primary:"#FF6B35", secondary:"#4ECDC4", accent:"#FFE66D",
+  purple:"#A855F7", green:"#22C55E", pink:"#EC4899", blue:"#3B82F6",
+  dark:"#1A1A2E", card:"#FFFFFF", border:"#E5E0D8"
+};
+const SCRATCH = [C.primary, C.secondary, C.purple, C.blue, C.pink, C.green];
+const PRESETS = [
+  {n:1,d:2},{n:1,d:3},{n:2,d:3},{n:1,d:4},{n:3,d:4},{n:1,d:5},
+  {n:2,d:5},{n:3,d:5},{n:1,d:6},{n:5,d:6},{n:1,d:8},{n:3,d:8}
+];
+
+const gcd = (a,b) => b===0?a:gcd(b,a%b);
+const areEq = (n1,d1,n2,d2) => n1*d2===n2*d1;
+
+// ─── shared UI ───────────────────────────────────────────────────────────────
+function Frac({n,d,sz="md",col=C.dark}) {
+  const s = {sm:{f:16,w:20},md:{f:24,w:28},lg:{f:34,w:40}}[sz];
+  return (
+    <div className="frac">
+      <span style={{fontSize:s.f,fontWeight:800,color:col,fontFamily:"Nunito"}}>{n}</span>
+      <div className="frac-bar" style={{width:s.w,background:col}}/>
+      <span style={{fontSize:s.f,fontWeight:800,color:col,fontFamily:"Nunito"}}>{d}</span>
+    </div>
+  );
+}
+
+function Pie({n,d,color=C.primary,size=100}) {
+  const r=size/2-5, cx=size/2, cy=size/2;
+  if(d<=0) return null;
+  return (
+    <svg width={size} height={size} style={{filter:"drop-shadow(0 3px 8px rgba(0,0,0,0.13))"}}>
+      <circle cx={cx} cy={cy} r={r} fill="#F3F0EB" stroke={C.border} strokeWidth={2}/>
+      {Array.from({length:d},(_,i)=>{
+        const a0=(i/d)*2*Math.PI-Math.PI/2, a1=((i+1)/d)*2*Math.PI-Math.PI/2;
+        const x1=cx+r*Math.cos(a0),y1=cy+r*Math.sin(a0);
+        const x2=cx+r*Math.cos(a1),y2=cy+r*Math.sin(a1);
+        return d===1
+          ? <circle key={i} cx={cx} cy={cy} r={r} fill={i<n?color:"transparent"}/>
+          : <path key={i} d={`M${cx} ${cy}L${x1} ${y1}A${r} ${r} 0 0 1 ${x2} ${y2}Z`}
+              fill={i<n?color:"transparent"} stroke={C.border} strokeWidth={1.5}
+              style={{transition:"fill 0.25s"}}/>;
+      })}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#999" strokeWidth={2}/>
+    </svg>
+  );
+}
+
+function Bar({n,d,color=C.secondary,h=40}) {
+  return (
+    <div style={{display:"flex",gap:2,height:h,width:"100%"}}>
+      {Array.from({length:d},(_,i)=>(
+        <div key={i} style={{flex:1,borderRadius:6,background:i<n?color:"#EEE9E0",
+          border:`2px solid ${i<n?color:C.border}`,transition:"background 0.25s"}}/>
+      ))}
+    </div>
+  );
+}
+
+function NLine({n,d,color=C.accent,w=260}) {
+  const mx=(n/d)*(w-32)+16;
+  return (
+    <svg width={w} height={48} style={{overflow:"visible"}}>
+      <line x1={8} y1={24} x2={w-8} y2={24} stroke="#CCC" strokeWidth={2.5} strokeLinecap="round"/>
+      <text x={8} y={42} textAnchor="middle" fontSize={10} fill="#999" fontFamily="Nunito">0</text>
+      <text x={w-8} y={42} textAnchor="middle" fontSize={10} fill="#999" fontFamily="Nunito">1</text>
+      {Array.from({length:d-1},(_,i)=>{
+        const x=((i+1)/d)*(w-16)+8;
+        return <line key={i} x1={x} y1={17} x2={x} y2={31} stroke="#DDD" strokeWidth={1.5}/>;
+      })}
+      <circle cx={mx} cy={24} r={10} fill={color} stroke="#FFF" strokeWidth={2.5}
+        style={{filter:"drop-shadow(0 2px 4px rgba(0,0,0,0.2))"}}/>
+      <text x={mx} y={10} textAnchor="middle" fontSize={10} fill={color} fontWeight="bold" fontFamily="Nunito">
+        {n}/{d}
+      </text>
+    </svg>
+  );
+}
+
+function SectionHeader({gradient,title,sub}) {
+  return (
+    <div style={{background:gradient,borderRadius:18,padding:"18px 20px",marginBottom:20,
+      boxShadow:"0 6px 20px rgba(0,0,0,0.15)"}}>
+      <h2 style={{margin:0,fontFamily:"Fredoka One",fontSize:20,color:"#FFF"}}>{title}</h2>
+      {sub&&<p style={{margin:"5px 0 0",color:"rgba(255,255,255,0.88)",fontSize:13,fontFamily:"Nunito"}}>{sub}</p>}
+    </div>
+  );
+}
+
+// ─── PAGE 1: Equivalent Explorer ─────────────────────────────────────────────
+function EquivPage() {
+  const [num,setNum]=useState(1);
+  const [den,setDen]=useState(2);
+  const [mult,setMult]=useState(2);
+  const [pulse,setPulse]=useState(false);
+
+  useEffect(()=>{ setPulse(true); const t=setTimeout(()=>setPulse(false),800); return()=>clearTimeout(t); },[mult,num,den]);
+
+  const eN=num*mult, eD=den*mult;
+  const commonD=den*mult/gcd(den,den*mult);
+
+  return (
+    <div style={{padding:"16px 14px 100px"}}>
+      <SectionHeader
+        gradient="linear-gradient(135deg,#FFE66D 0%,#FF6B35 100%)"
+        title="✨ Equivalent Fractions Explorer"
+        sub="Fractions that look different but are the same amount!"
+      />
+
+      {/* Sliders */}
+      <div className="card" style={{padding:16,marginBottom:16}}>
+        <p style={{fontFamily:"Nunito",fontWeight:800,fontSize:14,color:C.dark,marginBottom:14}}>🎛️ Build your fraction:</p>
+        <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          {[
+            {label:"Numerator (top)",val:num,min:1,max:den-1||1,set:setNum,col:C.primary},
+            {label:"Denominator (bottom)",val:den,min:2,max:12,set:v=>{setDen(v);setNum(Math.min(num,v-1));},col:C.secondary},
+            {label:"Multiply by",val:mult,min:2,max:6,set:setMult,col:C.purple},
+          ].map(({label,val,min,max,set,col})=>(
+            <label key={label} style={{display:"flex",flexDirection:"column",gap:6}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontFamily:"Nunito",fontSize:13,color:"#666"}}>{label}</span>
+                <span style={{fontFamily:"Fredoka One",fontSize:20,color:col}}>{label.includes("Multiply")?"× "+val:val}</span>
+              </div>
+              <input type="range" min={min} max={max} value={val}
+                onChange={e=>set(+e.target.value)}
+                style={{"--thumb-color":col, accentColor:col, background:`linear-gradient(to right,${col} ${(val-min)/(max-min)*100}%,#E5E0D8 ${(val-min)/(max-min)*100}%)`}}/>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Side-by-side visual */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 40px 1fr",gap:8,marginBottom:16,alignItems:"center"}}>
+        {[{n:num,d:den,col:C.primary,label:"Original"},{n:eN,d:eD,col:C.secondary,label:"Equivalent"}].map((f,idx)=>(
+          <React.Fragment key={idx}>
+            {idx===1&&(
+              <div style={{textAlign:"center"}}>
+                <div style={{fontFamily:"Fredoka One",fontSize:38,color:C.dark,
+                  transform:pulse?"scale(1.4)":"scale(1)",transition:"transform 0.25s",lineHeight:1}}>=</div>
+              </div>
+            )}
+            <div className="card" style={{padding:14,textAlign:"center",borderColor:f.col}}>
+              <div style={{fontFamily:"Nunito",fontWeight:700,fontSize:11,color:f.col,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>{f.label}</div>
+              <div style={{display:"flex",justifyContent:"center",marginBottom:10}}>
+                <Pie n={f.n} d={f.d} color={f.col} size={90}/>
+              </div>
+              <Bar n={f.n} d={f.d} color={f.col} h={34}/>
+              <div style={{marginTop:12,display:"flex",justifyContent:"center"}}>
+                <Frac n={f.n} d={f.d} sz="lg" col={f.col}/>
+              </div>
+            </div>
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* Rule callout */}
+      <div style={{background:"#F0FDF4",borderRadius:14,padding:14,border:"2px solid #86EFAC",marginBottom:16}}>
+        <div style={{fontFamily:"Fredoka One",fontSize:15,color:"#166534",marginBottom:6}}>💡 The Secret Rule!</div>
+        <div style={{fontFamily:"Nunito",fontSize:13,color:"#15803D",lineHeight:1.6}}>
+          Multiply <strong>both</strong> top and bottom by the same number:
+          <br/>
+          <span style={{background:"#DCFCE7",padding:"2px 8px",borderRadius:6,fontWeight:700,marginRight:4}}>{num} × {mult} = {eN}</span>
+          on top &amp;
+          <span style={{background:"#DCFCE7",padding:"2px 8px",borderRadius:6,fontWeight:700,marginLeft:4}}>{den} × {mult} = {eD}</span>
+          on bottom.
+        </div>
+      </div>
+
+      {/* Number lines */}
+      <div className="card" style={{padding:16}}>
+        <div style={{fontFamily:"Nunito",fontWeight:800,fontSize:13,color:C.dark,marginBottom:12}}>📏 Same spot on the number line!</div>
+        <div style={{overflowX:"auto"}}>
+          {[{n:num,d:den,col:C.primary},{n:eN,d:eD,col:C.secondary}].map((f,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:i===0?10:0}}>
+              <div style={{width:36,flexShrink:0,display:"flex",justifyContent:"flex-end"}}>
+                <Frac n={f.n} d={f.d} sz="sm" col={f.col}/>
+              </div>
+              <NLine n={f.n} d={f.d} color={f.col} w={260}/>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PAGE 2: Compare ─────────────────────────────────────────────────────────
+function ComparePage() {
+  const [n1,setN1]=useState(1); const [d1,setD1]=useState(3);
+  const [n2,setN2]=useState(2); const [d2,setD2]=useState(4);
+
+  const v1=n1/d1, v2=n2/d2;
+  const sym=v1<v2?"<":v1>v2?">":"=";
+  const symCol=sym==="<"?C.blue:sym===">"?C.primary:C.green;
+  const lcdVal=d1*d2/gcd(d1,d2);
+  const cn1=n1*(lcdVal/d1), cn2=n2*(lcdVal/d2);
+
+  const FracControl = ({n,d,setN,setD,col,label}) => (
+    <div className="card" style={{padding:14,borderColor:col}}>
+      <div style={{fontFamily:"Nunito",fontWeight:700,fontSize:11,color:col,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>{label}</div>
+      <div style={{display:"flex",justifyContent:"center",marginBottom:10}}>
+        <Pie n={n} d={d} color={col} size={90}/>
+      </div>
+      <Bar n={n} d={d} color={col} h={32}/>
+      <div style={{marginTop:10,display:"flex",justifyContent:"center",marginBottom:14}}>
+        <Frac n={n} d={d} sz="lg" col={col}/>
+      </div>
+      <div style={{display:"flex",gap:12}}>
+        {[{lb:"Top",val:n,min:0,max:d,setF:setN},{lb:"Bottom",val:d,min:1,max:12,setF:v=>{setD(v);if(n>v)setN(v);}}].map(({lb,val,min,max,setF})=>(
+          <label key={lb} style={{flex:1,display:"flex",flexDirection:"column",gap:4,alignItems:"center"}}>
+            <span style={{fontFamily:"Nunito",fontSize:11,color:"#888"}}>{lb}</span>
+            <input type="range" min={min} max={max} value={val}
+              onChange={e=>setF(+e.target.value)}
+              style={{"--thumb-color":col,accentColor:col,width:"100%",background:`linear-gradient(to right,${col} ${(val-min)/(max-min)*100}%,#E5E0D8 ${(val-min)/(max-min)*100}%)`}}/>
+            <strong style={{fontFamily:"Fredoka One",fontSize:18,color:col}}>{val}</strong>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{padding:"16px 14px 100px"}}>
+      <SectionHeader
+        gradient="linear-gradient(135deg,#A855F7 0%,#3B82F6 100%)"
+        title="⚖️ Fraction Comparator"
+        sub="Which fraction is bigger, smaller, or equal?"
+      />
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 44px 1fr",gap:8,marginBottom:16,alignItems:"center"}}>
+        <FracControl n={n1} d={d1} setN={setN1} setD={setD1} col={C.primary} label="Fraction A"/>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontFamily:"Fredoka One",fontSize:42,color:symCol,transition:"color 0.3s",lineHeight:1}}>{sym}</div>
+        </div>
+        <FracControl n={n2} d={d2} setN={setN2} setD={setD2} col={C.blue} label="Fraction B"/>
+      </div>
+
+      {/* Verdict */}
+      <div style={{background:symCol+"18",borderRadius:14,padding:14,border:`2px solid ${symCol}55`,marginBottom:14,textAlign:"center"}}>
+        <div style={{fontFamily:"Fredoka One",fontSize:18,color:symCol}}>
+          {sym==="="?"🎉 They are EQUAL!":sym===">"?`🏆 ${n1}/${d1} is GREATER`:`📉 ${n1}/${d1} is LESS`}
+        </div>
+      </div>
+
+      {/* Common denominator explanation */}
+      <div style={{background:"#FFFBEB",borderRadius:14,padding:14,border:"2px solid #FDE68A"}}>
+        <div style={{fontFamily:"Fredoka One",fontSize:14,color:"#92400E",marginBottom:8}}>📚 Same-Bottom Trick (LCD = {lcdVal})</div>
+        <div style={{display:"flex",justifyContent:"space-around",alignItems:"center",flexWrap:"wrap",gap:12}}>
+          <div style={{textAlign:"center"}}>
+            <Frac n={n1} d={d1} sz="md" col={C.primary}/>
+            <div style={{fontFamily:"Nunito",fontSize:11,color:"#999",margin:"6px 0"}}>→</div>
+            <Frac n={cn1} d={lcdVal} sz="md" col={C.primary}/>
+          </div>
+          <div style={{fontFamily:"Fredoka One",fontSize:32,color:symCol}}>{cn1<cn2?"<":cn1>cn2?">":"="}</div>
+          <div style={{textAlign:"center"}}>
+            <Frac n={n2} d={d2} sz="md" col={C.blue}/>
+            <div style={{fontFamily:"Nunito",fontSize:11,color:"#999",margin:"6px 0"}}>→</div>
+            <Frac n={cn2} d={lcdVal} sz="md" col={C.blue}/>
+          </div>
+        </div>
+        <div style={{fontFamily:"Nunito",fontSize:13,color:"#78350F",marginTop:10,textAlign:"center"}}>
+          Now compare tops: <strong>{cn1}</strong> {cn1<cn2?"<":cn1>cn2?">":"="} <strong>{cn2}</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PAGE 3: Computation Workspace ───────────────────────────────────────────
+function WorkRow({idx,frac,onRemove}) {
+  const [mult,setMult]=useState("");
+  const [nAns,setNAns]=useState("");
+  const [dAns,setDAns]=useState("");
+  const [checked,setChecked]=useState(false);
+  const col=SCRATCH[idx%SCRATCH.length];
+  const {n,d}=frac;
+
+  const cN=mult!==""?n*+mult:null;
+  const cD=mult!==""?d*+mult:null;
+  const nSt=!checked||nAns===""?"idle":+nAns===cN?"correct":"wrong";
+  const dSt=!checked||dAns===""?"idle":+dAns===cD?"correct":"wrong";
+  const allOk=checked&&nAns!==""&&dAns!==""&&+nAns===cN&&+dAns===cD;
+  const anyWrong=checked&&((nAns!==""&&+nAns!==cN)||(dAns!==""&&+dAns!==cD));
+  const canCheck=mult!==""&&nAns!==""&&dAns!=="";
+
+  const reset=()=>{setMult("");setNAns("");setDAns("");setChecked(false);};
+
+  return (
+    <div className="card" style={{padding:16,marginBottom:14,
+      borderColor:allOk?C.green:anyWrong?C.pink:col+"66",
+      boxShadow:allOk?`0 4px 18px ${C.green}33`:"0 2px 10px rgba(0,0,0,0.06)",
+      transition:"all 0.3s",position:"relative"}}>
+
+      <button onClick={onRemove} style={{position:"absolute",top:10,right:10,background:"transparent",border:"none",fontSize:18,cursor:"pointer",color:"#CCC",padding:"4px 6px"}}>✕</button>
+
+      {/* Top row: fraction + × mult → result */}
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,flexWrap:"wrap"}}>
+        {/* Start fraction */}
+        <div style={{background:col+"18",border:`3px solid ${col}`,borderRadius:14,padding:"10px 14px",display:"flex",flexDirection:"column",alignItems:"center",gap:4,flexShrink:0}}>
+          <span style={{fontFamily:"Fredoka One",fontSize:22,color:col}}>{n}</span>
+          <div style={{width:28,height:3,background:col,borderRadius:2}}/>
+          <span style={{fontFamily:"Fredoka One",fontSize:22,color:col}}>{d}</span>
+        </div>
+
+        <div style={{fontFamily:"Fredoka One",fontSize:26,color:"#CCC"}}>×</div>
+
+        {/* Multiplier */}
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+          <div style={{fontSize:11,fontFamily:"Nunito",color:"#999",textTransform:"uppercase",letterSpacing:0.5}}>Multiply by</div>
+          <input type="number" inputMode="numeric" min={2} max={20} value={mult}
+            onChange={e=>{setMult(e.target.value===""?"":Math.max(2,parseInt(e.target.value)||2));setChecked(false);}}
+            placeholder="?"
+            style={{width:60,height:60,borderRadius:14,border:`3px solid ${col}`,background:col+"10",
+              fontSize:"20px",fontFamily:"Fredoka One",color:col,textAlign:"center",outline:"none"}}/>
+        </div>
+
+        <div style={{fontFamily:"Fredoka One",fontSize:22,color:"#CCC"}}>→</div>
+
+        {/* Result preview */}
+        <div style={{background:allOk?"#F0FDF4":"#F8F8F8",border:`3px ${allOk?"solid":"dashed"} ${allOk?C.green:"#DDD"}`,
+          borderRadius:14,padding:"10px 14px",display:"flex",flexDirection:"column",alignItems:"center",gap:4,
+          transition:"all 0.3s",flexShrink:0}}>
+          <span style={{fontFamily:"Fredoka One",fontSize:22,color:allOk?C.green:"#CCC"}}>{allOk?nAns:"?"}</span>
+          <div style={{width:28,height:3,background:allOk?C.green:"#DDD",borderRadius:2,transition:"background 0.3s"}}/>
+          <span style={{fontFamily:"Fredoka One",fontSize:22,color:allOk?C.green:"#CCC"}}>{allOk?dAns:"?"}</span>
+        </div>
+
+        {allOk&&(
+          <div className="pop-in" style={{display:"flex",gap:4}}>
+            <Pie n={n} d={d} color={col} size={48}/>
+            <Pie n={+nAns} d={+dAns} color={C.green} size={48}/>
+          </div>
+        )}
+      </div>
+
+      {/* Computation rows */}
+      <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
+        {/* Numerator */}
+        <div className="comp-row">
+          <span style={{fontFamily:"Fredoka One",fontSize:18,color:col,minWidth:18}}>{n}</span>
+          <span style={{fontFamily:"Nunito",fontWeight:700,color:"#AAA",fontSize:14}}>×</span>
+          <div style={{background:mult!==""?col+"22":"#EEE",border:`2px dashed ${mult!==""?col:"#DDD"}`,
+            borderRadius:8,width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center",
+            fontFamily:"Fredoka One",fontSize:16,color:col,flexShrink:0}}>
+            {mult!==""?mult:"?"}
+          </div>
+          <span style={{fontFamily:"Nunito",fontWeight:700,color:"#AAA",fontSize:14}}>=</span>
+          <input type="number" inputMode="numeric" value={nAns}
+            onChange={e=>{setNAns(e.target.value===""?"":parseInt(e.target.value)||"");setChecked(false);}}
+            placeholder="?" className={`answer-input ${nSt}`}/>
+          <span style={{fontSize:16,flexShrink:0}}>{nSt==="correct"?"✅":nSt==="wrong"?"❌":""}</span>
+          <span style={{fontFamily:"Nunito",fontSize:11,color:"#AAA",marginLeft:"auto",flexShrink:0}}>← top</span>
+        </div>
+
+        {/* Fraction bar */}
+        <div style={{height:3,background:"#E5E0D8",borderRadius:2,margin:"0 6px"}}/>
+
+        {/* Denominator */}
+        <div className="comp-row">
+          <span style={{fontFamily:"Fredoka One",fontSize:18,color:col,minWidth:18}}>{d}</span>
+          <span style={{fontFamily:"Nunito",fontWeight:700,color:"#AAA",fontSize:14}}>×</span>
+          <div style={{background:mult!==""?col+"22":"#EEE",border:`2px dashed ${mult!==""?col:"#DDD"}`,
+            borderRadius:8,width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center",
+            fontFamily:"Fredoka One",fontSize:16,color:col,flexShrink:0}}>
+            {mult!==""?mult:"?"}
+          </div>
+          <span style={{fontFamily:"Nunito",fontWeight:700,color:"#AAA",fontSize:14}}>=</span>
+          <input type="number" inputMode="numeric" value={dAns}
+            onChange={e=>{setDAns(e.target.value===""?"":parseInt(e.target.value)||"");setChecked(false);}}
+            placeholder="?" className={`answer-input ${dSt}`}/>
+          <span style={{fontSize:16,flexShrink:0}}>{dSt==="correct"?"✅":dSt==="wrong"?"❌":""}</span>
+          <span style={{fontFamily:"Nunito",fontSize:11,color:"#AAA",marginLeft:"auto",flexShrink:0}}>← bottom</span>
+        </div>
+      </div>
+
+      {/* Buttons */}
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={()=>setChecked(true)} disabled={!canCheck}
+          style={{flex:1,background:canCheck?col:"#EEE",color:canCheck?"#FFF":"#AAA",border:"none",
+            borderRadius:12,padding:"13px",fontFamily:"Fredoka One",fontSize:15,cursor:canCheck?"pointer":"not-allowed",transition:"all 0.2s"}}>
+          Check ✓
+        </button>
+        <button onClick={reset}
+          style={{background:"#F3F0EB",color:"#777",border:"none",borderRadius:12,padding:"13px 18px",fontFamily:"Fredoka One",fontSize:15,cursor:"pointer"}}>
+          Reset ↺
+        </button>
+      </div>
+
+      {allOk&&<div style={{marginTop:10,background:"#F0FDF4",borderRadius:10,padding:"10px 14px",border:"1.5px solid #86EFAC",fontFamily:"Nunito",fontSize:13,color:"#15803D",textAlign:"center"}}>
+        🌟 <strong>{n}/{d} = {nAns}/{dAns}</strong> — Equivalent fraction found!
+      </div>}
+      {anyWrong&&checked&&<div style={{marginTop:10,background:"#FFF0F0",borderRadius:10,padding:"10px 14px",border:`1.5px solid ${C.pink}55`,fontFamily:"Nunito",fontSize:13,color:"#BE123C"}}>
+        💡 Hint: <strong>{n} × {mult} = ?</strong> for top &amp; <strong>{d} × {mult} = ?</strong> for bottom.
+      </div>}
+    </div>
+  );
+}
+
+function PracticePage() {
+  const [rows,setRows]=useState([{id:0,frac:{n:1,d:2}}]);
+  const [nxtId,setNxtId]=useState(1);
+  const [cN,setCN]=useState(1);
+  const [cD,setCD]=useState(3);
+
+  const addRow=frac=>{setRows(r=>[...r,{id:nxtId,frac}]);setNxtId(i=>i+1);};
+  const rmRow=id=>setRows(r=>r.filter(x=>x.id!==id));
+
+  return (
+    <div style={{padding:"16px 14px 100px"}}>
+      <SectionHeader
+        gradient="linear-gradient(135deg,#F59E0B 0%,#EC4899 100%)"
+        title="✏️ Multiply to Find Equivalents"
+        sub="Pick a fraction, choose a multiplier, do the math!"
+      />
+
+      <div style={{background:"#FFFBEB",border:"2px solid #FDE68A",borderRadius:14,padding:12,marginBottom:16,display:"flex",gap:10}}>
+        <span style={{fontSize:20,flexShrink:0}}>📖</span>
+        <div style={{fontFamily:"Nunito",fontSize:13,color:"#78350F",lineHeight:1.6}}>
+          Type a <strong>multiplier</strong>, then multiply the <strong>top</strong> and <strong>bottom</strong> by that number. Write your answers and tap <strong>Check!</strong>
+        </div>
+      </div>
+
+      {/* Preset picker */}
+      <div className="card" style={{padding:14,marginBottom:16}}>
+        <div style={{fontFamily:"Nunito",fontWeight:800,fontSize:13,color:C.dark,marginBottom:10}}>➕ Tap a fraction to add it:</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:14}}>
+          {PRESETS.map((f,i)=>(
+            <button key={i} onClick={()=>addRow(f)}
+              style={{background:SCRATCH[i%SCRATCH.length]+"18",border:`2px solid ${SCRATCH[i%SCRATCH.length]}55`,
+                borderRadius:12,padding:"8px 11px",cursor:"pointer",fontFamily:"Fredoka One",fontSize:15,
+                color:SCRATCH[i%SCRATCH.length],display:"flex",flexDirection:"column",alignItems:"center",gap:1,
+                minWidth:44,minHeight:52}}>
+              <span>{f.n}</span>
+              <span style={{fontSize:10,lineHeight:"8px",opacity:0.5}}>─</span>
+              <span>{f.d}</span>
+            </button>
+          ))}
+        </div>
+
+        <div style={{borderTop:"1.5px dashed #E5E0D8",paddingTop:12}}>
+          <div style={{fontFamily:"Nunito",fontSize:12,color:"#999",marginBottom:8}}>Or type your own:</div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <input type="number" inputMode="numeric" min={0} max={99} value={cN}
+                onChange={e=>setCN(Math.max(0,parseInt(e.target.value)||0))}
+                style={{width:54,height:48,borderRadius:10,border:`2.5px solid ${C.purple}`,fontSize:"20px",
+                  fontFamily:"Fredoka One",color:C.purple,textAlign:"center",outline:"none"}}/>
+              <div style={{width:54,height:3,background:C.purple,borderRadius:2}}/>
+              <input type="number" inputMode="numeric" min={1} max={99} value={cD}
+                onChange={e=>setCD(Math.max(1,parseInt(e.target.value)||1))}
+                style={{width:54,height:48,borderRadius:10,border:`2.5px solid ${C.purple}`,fontSize:"20px",
+                  fontFamily:"Fredoka One",color:C.purple,textAlign:"center",outline:"none"}}/>
+            </div>
+            <button onClick={()=>addRow({n:cN,d:cD})}
+              style={{background:C.purple,color:"#FFF",border:"none",borderRadius:14,padding:"14px 20px",
+                fontFamily:"Fredoka One",fontSize:16,cursor:"pointer",boxShadow:`0 4px 14px ${C.purple}44`}}>
+              Add ➕
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {rows.length===0
+        ?<div style={{textAlign:"center",padding:40,color:"#CCC",fontFamily:"Nunito",fontSize:15}}>👆 Add a fraction above to get started!</div>
+        :rows.map((row,i)=><WorkRow key={row.id} idx={i} frac={row.frac} onRemove={()=>rmRow(row.id)}/>)
+      }
+    </div>
+  );
+}
+
+// ─── PAGE 4: Quiz ─────────────────────────────────────────────────────────────
+function makeQ() {
+  if(Math.random()<0.5) {
+    const d=[2,3,4,5,6][Math.floor(Math.random()*5)];
+    const n=Math.floor(Math.random()*(d-1))+1;
+    const m=[2,3,4][Math.floor(Math.random()*3)];
+    return {type:"equiv",frac:{n,d},ans:{n:n*m,d:d*m},
+      opts:[{n:n*m,d:d*m},{n:n*m+1,d:d*m},{n:n+1,d:d},{n:n*m,d:d*m+1}].sort(()=>Math.random()-0.5)};
+  } else {
+    const d1=[2,3,4,6,8][Math.floor(Math.random()*5)];
+    const d2=[2,3,4,6,8][Math.floor(Math.random()*5)];
+    const n1=Math.floor(Math.random()*(d1+1));
+    const n2=Math.floor(Math.random()*(d2+1));
+    const a=n1/d1<n2/d2?"<":n1/d1>n2/d2?">":"=";
+    return {type:"cmp",f1:{n:n1,d:d1},f2:{n:n2,d:d2},ans:a,opts:["<",">","="]};
+  }
+}
+
+function QuizPage() {
+  const [q,setQ]=useState(makeQ);
+  const [sel,setSel]=useState(null);
+  const [score,setScore]=useState(0);
+  const [total,setTotal]=useState(0);
+  const [streak,setStreak]=useState(0);
+
+  const isOk = sel!==null && (
+    q.type==="equiv" ? areEq(sel.n,sel.d,q.ans.n,q.ans.d) : sel===q.ans
+  );
+
+  const pick=opt=>{
+    if(sel!==null)return;
+    setSel(opt);setTotal(t=>t+1);
+    const ok=q.type==="equiv"?areEq(opt.n,opt.d,q.ans.n,q.ans.d):opt===q.ans;
+    if(ok){setScore(s=>s+1);setStreak(s=>s+1);}else setStreak(0);
+  };
+
+  const next=()=>{setQ(makeQ());setSel(null);};
+
+  return (
+    <div style={{padding:"16px 14px 100px"}}>
+      <SectionHeader
+        gradient="linear-gradient(135deg,#22C55E 0%,#4ECDC4 100%)"
+        title="🎯 Fraction Quiz"
+        sub={`Score: ${score}/${total}${streak>=2?" 🔥 "+streak+" streak!":""}`}
+      />
+
+      <div className="card" style={{padding:20,marginBottom:14}}>
+        {q.type==="equiv" ? (
+          <>
+            <div style={{fontFamily:"Nunito",fontWeight:800,fontSize:15,color:C.dark,marginBottom:16,textAlign:"center"}}>
+              Find an equivalent fraction for:
+            </div>
+            <div style={{display:"flex",justifyContent:"center",gap:20,marginBottom:20,alignItems:"center"}}>
+              <div style={{textAlign:"center"}}>
+                <Pie n={q.frac.n} d={q.frac.d} color={C.primary} size={90}/>
+                <div style={{marginTop:10,display:"flex",justifyContent:"center"}}>
+                  <Frac n={q.frac.n} d={q.frac.d} sz="lg" col={C.primary}/>
+                </div>
+              </div>
+              <div style={{fontFamily:"Fredoka One",fontSize:34,color:"#CCC"}}>=</div>
+              <div style={{width:90,height:90,borderRadius:"50%",border:`3px dashed ${C.border}`,
+                display:"flex",alignItems:"center",justifyContent:"center",fontSize:30,color:C.border}}>
+                {sel?<Pie n={sel.n} d={sel.d} color={isOk?C.green:C.pink} size={90}/>:"?"}
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {q.opts.map((opt,i)=>{
+                const chosen=sel&&opt.n===sel.n&&opt.d===sel.d;
+                const ok=areEq(opt.n,opt.d,q.ans.n,q.ans.d);
+                let bg=C.card,border=C.border;
+                if(sel){if(ok){bg="#F0FDF4";border=C.green;}else if(chosen){bg="#FFF0F0";border=C.pink;}}
+                return (
+                  <button key={i} onClick={()=>pick(opt)}
+                    style={{background:bg,border:`2.5px solid ${border}`,borderRadius:14,padding:"14px 8px",
+                      cursor:sel?"default":"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8,transition:"all 0.2s"}}>
+                    <Pie n={opt.n} d={opt.d} color={chosen&&!ok?C.pink:ok&&sel?C.green:"#BBB"} size={60}/>
+                    <Frac n={opt.n} d={opt.d} sz="sm" col={chosen&&!ok?C.pink:ok&&sel?C.green:C.dark}/>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{fontFamily:"Nunito",fontWeight:800,fontSize:15,color:C.dark,marginBottom:20,textAlign:"center"}}>
+              Which symbol goes in the middle? 🤔
+            </div>
+            <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:14,marginBottom:24,flexWrap:"wrap"}}>
+              <div style={{textAlign:"center"}}>
+                <Pie n={q.f1.n} d={q.f1.d} color={C.primary} size={90}/>
+                <div style={{marginTop:10,display:"flex",justifyContent:"center"}}>
+                  <Frac n={q.f1.n} d={q.f1.d} sz="lg" col={C.primary}/>
+                </div>
+              </div>
+              <div style={{fontFamily:"Fredoka One",fontSize:44,
+                color:sel?(isOk?C.green:C.pink):C.border,transition:"all 0.3s",minWidth:44,textAlign:"center"}}>
+                {sel||"?"}
+              </div>
+              <div style={{textAlign:"center"}}>
+                <Pie n={q.f2.n} d={q.f2.d} color={C.blue} size={90}/>
+                <div style={{marginTop:10,display:"flex",justifyContent:"center"}}>
+                  <Frac n={q.f2.n} d={q.f2.d} sz="lg" col={C.blue}/>
+                </div>
+              </div>
+            </div>
+            <div style={{display:"flex",justifyContent:"center",gap:14}}>
+              {q.opts.map((opt,i)=>{
+                const chosen=sel===opt;
+                const ok=opt===q.ans;
+                let bg=C.card,border=C.border,col=C.dark;
+                if(sel){if(ok){bg="#F0FDF4";border=C.green;col=C.green;}else if(chosen){bg="#FFF0F0";border=C.pink;col=C.pink;}}
+                return (
+                  <button key={i} onClick={()=>pick(opt)}
+                    style={{background:bg,border:`3px solid ${border}`,borderRadius:16,width:76,height:76,
+                      fontSize:38,fontFamily:"Fredoka One",color:col,cursor:sel?"default":"pointer",transition:"all 0.2s",
+                      display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      {sel&&(
+        <div style={{background:isOk?"#F0FDF4":"#FFF0F0",borderRadius:14,padding:14,
+          border:`2px solid ${isOk?C.green:C.pink}`,marginBottom:14,textAlign:"center"}}>
+          <div style={{fontFamily:"Fredoka One",fontSize:20,color:isOk?C.green:C.pink}}>
+            {isOk?"🎉 Correct! Amazing!":"❌ Not quite — keep going!"}
+          </div>
+          {!isOk&&q.type==="equiv"&&(
+            <div style={{fontFamily:"Nunito",fontSize:13,color:"#555",marginTop:4}}>
+              Hint: {q.frac.n} × {q.ans.d/q.frac.d} = {q.ans.n} on top, {q.frac.d} × {q.ans.d/q.frac.d} = {q.ans.d} on bottom.
+            </div>
+          )}
+        </div>
+      )}
+
+      {sel&&(
+        <button onClick={next}
+          style={{width:"100%",background:"linear-gradient(135deg,#22C55E,#4ECDC4)",color:"#FFF",border:"none",
+            borderRadius:14,padding:"16px",fontFamily:"Fredoka One",fontSize:18,cursor:"pointer",
+            boxShadow:"0 4px 16px rgba(34,197,94,0.35)"}}>
+          Next Question →
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── ROOT ─────────────────────────────────────────────────────────────────────
+const TABS = [
+  {label:"Explore",icon:"✨",page:<EquivPage/>},
+  {label:"Compare",icon:"⚖️",page:<ComparePage/>},
+  {label:"Practice",icon:"✏️",page:<PracticePage/>},
+  {label:"Quiz",icon:"🎯",page:<QuizPage/>},
+];
+
+function App() {
+  const [tab,setTab]=useState(0);
+  // Keep all pages mounted (just hidden) so state isn't lost when switching
+  return (
+    <div id="app" style={{display:"flex",flexDirection:"column",height:"100%",background:"#1A1A2E"}}>
+      {/* Header */}
+      <div className="app-header">
+        <div style={{fontSize:26}}>🍕</div>
+        <div>
+          <div style={{fontFamily:"Fredoka One",fontSize:19,color:"#FFF",letterSpacing:0.5}}>Fraction World</div>
+          <div style={{fontFamily:"Nunito",fontSize:11,color:"rgba(255,255,255,0.5)"}}>Learn fractions with pictures!</div>
+        </div>
+        <div style={{marginLeft:"auto",display:"flex",gap:6}}>
+          <div style={{background:"#FFE66D22",borderRadius:10,padding:"4px 10px",fontFamily:"Nunito",fontSize:12,color:"#FFE66D",fontWeight:700}}>
+            {TABS[tab].icon} {TABS[tab].label}
+          </div>
+        </div>
+      </div>
+
+      {/* Pages */}
+      <div className="page-scroll" style={{flex:1,background:"#FFF8F0"}}>
+        {TABS.map((t,i)=>(
+          <div key={i} style={{display:tab===i?"block":"none"}}>
+            {t.page}
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom nav */}
+      <div className="bottom-nav">
+        {TABS.map((t,i)=>(
+          <button key={i} className={`nav-btn${tab===i?" active":""}`} onClick={()=>setTab(i)}>
+            <span className="icon">{t.icon}</span>
+            <span className="label">{t.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+
+<script>
+// Register service worker
+if("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js")
+      .then(r => console.log("SW registered:", r.scope))
+      .catch(e => console.log("SW failed:", e));
+  });
+}
+
+// iOS standalone detection — hide address bar prompt after install
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  // Could show a custom install button here
+  window._installPrompt = e;
+});
+</script>
+</body>
+</html>
